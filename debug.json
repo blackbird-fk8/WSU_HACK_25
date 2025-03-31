@@ -1,0 +1,43 @@
+{
+  "configurations": [
+    {
+      "type": "cppvsdbg",
+      "request": "launch",
+      "name": "Launch Program",
+      "program": "${workspaceFolder}/${input:executableName}.exe",
+      "stopAtEntry": true,
+      "preLaunchTask": "build"
+    }
+  ],
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "executableName",
+      "description": "Enter the name of your executable (without extension)"
+    }
+  ],
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "build",
+      "command": "g++",
+      "args": [
+        "main.cpp",
+        "-o",
+        "${input:executableName}.exe"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": ["$gcc"],
+      "inputs": [
+        {
+          "type": "promptString",
+          "id": "executableName",
+          "description": "Enter the name of your executable (without extension)"
+        }
+      ]
+    }
+  ]
+}
