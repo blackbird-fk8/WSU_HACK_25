@@ -9,6 +9,7 @@ from tkinter import scrolledtext
 from threading import Thread
 import time
 import base64  # Add this import at the top of the file
+import socket  # For network communication
 
 # File to store saved messages
 SAVED_MESSAGES_FILE = "saved_messages.txt"
@@ -112,7 +113,60 @@ def start_chatbox():
 
     chatbox.mainloop()
 
-# Updated main function with "Live Chatbox" removed
+# Function to send a message to another user
+def send_message():
+    host = easygui.enterbox("Enter the recipient's IP address:", "Send Message")
+    if not host:
+        easygui.msgbox("No IP address entered. Returning to the main menu.", "No IP Address")
+        return
+
+    port = 12345  # Port to connect to
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    try:
+        # Attempt to connect to the recipient
+        client_socket.connect((host, port))
+        easygui.msgbox(f"Connected to {host}:{port}", "Connection Established")
+
+        # Prompt the user to enter a message
+        message = easygui.enterbox("Enter your message:", "Send Message")
+        if message:
+            client_socket.send(message.encode('utf-8'))  # Send the message
+            easygui.msgbox("Message sent successfully!", "Message Sent")
+        else:
+            easygui.msgbox("No message entered. Connection closed.", "No Message")
+
+        client_socket.close()
+    except Exception as e:
+        easygui.msgbox(f"Failed to send message: {e}", "Connection Error")
+
+# Function to receive a message and display it in a pop-up
+def receive_message():
+    host = socket.gethostbyname(socket.gethostname())  # Get the local IP address
+    port = 12345  # Port to listen on
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind((host, port))
+    server_socket.listen(1)
+    easygui.msgbox(f"Waiting for a connection...\nYour IP: {host}", "Waiting for Connection")
+
+    try:
+        conn, addr = server_socket.accept()  # Accept an incoming connection
+        easygui.msgbox(f"Connected to {addr}", "Connection Established")
+
+        # Receive the message
+        data = conn.recv(1024).decode('utf-8')
+        if data:
+            # Display the received message in a pop-up
+            easygui.msgbox(f"Message received:\n{data}", "Message Received")
+        else:
+            easygui.msgbox("No message received.", "No Message")
+
+        conn.close()
+        server_socket.close()
+    except Exception as e:
+        easygui.msgbox(f"Failed to receive message: {e}", "Connection Error")
+
+# Updated main function with "Send" and "Receive" options
 def main():
     # Password protection
     correct_password = "ee2026"  # Set the password to "ee2026"
@@ -129,7 +183,15 @@ def main():
         choice = easygui.buttonbox(
             "What would you like to do?",
             "RSA Encrypter/Decrypter",
-            choices=["Generate RSA Keys", "Encrypt a Message", "Decrypt a Message", "View Saved Messages", "Exit"]
+            choices=[
+                "Generate RSA Keys",
+                "Encrypt a Message",
+                "Decrypt a Message",
+                "View Saved Messages",
+                "Send",
+                "Receive",
+                "Exit"
+            ]
         )
 
         if choice == "Generate RSA Keys":
@@ -216,6 +278,12 @@ def main():
             if reset_choice:
                 clear_saved_messages()
                 easygui.msgbox("All saved messages have been deleted.", "Reset Successful")
+
+        elif choice == "Send":
+            send_message()
+
+        elif choice == "Receive":
+            receive_message()
 
         elif choice == "Exit":
             easygui.msgbox("Goodbye!", "Exit")
