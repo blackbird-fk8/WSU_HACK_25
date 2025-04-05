@@ -38,11 +38,24 @@ def encrypt_message(message, public_key):
 
 # Decrypt a message using the private key
 def decrypt_message(ciphertext, private_key):
-    rsa_key = RSA.import_key(private_key)
-    cipher = PKCS1_OAEP.new(rsa_key)
-    ciphertext_bytes = base64.b64decode(ciphertext)  # Decode from Base64 string
-    plaintext = cipher.decrypt(ciphertext_bytes)
-    return plaintext.decode('utf-8')
+    try:
+        # Import the private key
+        rsa_key = RSA.import_key(private_key)
+        cipher = PKCS1_OAEP.new(rsa_key)
+
+        # Decode the Base64-encoded ciphertext
+        ciphertext_bytes = base64.b64decode(ciphertext)
+        easygui.msgbox(f"Decoded ciphertext bytes:\n{ciphertext_bytes}", "Debug: Decoded Ciphertext")
+
+        # Decrypt the message
+        plaintext = cipher.decrypt(ciphertext_bytes)
+        easygui.msgbox(f"Decrypted plaintext bytes:\n{plaintext}", "Debug: Decrypted Plaintext")
+
+        # Return the plaintext as a UTF-8 string
+        return plaintext.decode('utf-8')
+    except Exception as e:
+        easygui.msgbox(f"Decryption failed: {e}", "Error")
+        return None
 
 # Save private key to the keys directory
 def save_private_key(private_key, filename="private_key.pem"):
@@ -168,7 +181,7 @@ def send_message():
     except Exception as e:
         easygui.msgbox(f"Failed to send message: {e}", "Connection Error")
 
-# Function to receive a message and display it in a pop-up
+# Function to receive a message and decrypt it using the same decryption logic
 def receive_message():
     host = socket.gethostbyname(socket.gethostname())  # Get the local IP address
     port = 12345  # Port to listen on
@@ -181,11 +194,31 @@ def receive_message():
         conn, addr = server_socket.accept()  # Accept an incoming connection
         easygui.msgbox(f"Connected to {addr}", "Connection Established")
 
-        # Receive the message
+        # Receive the encrypted message
         data = conn.recv(1024).decode('utf-8')
         if data:
-            # Display the received message in a pop-up
-            easygui.msgbox(f"Message received:\n{data}", "Message Received")
+            # Display the received encrypted message
+            decrypt_choice = easygui.buttonbox(
+                f"Encrypted message received:\n{data}\n\nWould you like to decrypt it?",
+                "Message Received",
+                choices=["Decrypt", "Close"]
+            )
+
+            if decrypt_choice == "Decrypt":
+                try:
+                    # Load the private key
+                    private_key = load_private_key()
+
+                    # Decrypt the message using the decrypt_message function
+                    decrypted_message = decrypt_message(data, private_key)
+                    if decrypted_message:
+                        easygui.msgbox(f"Decrypted message:\n{decrypted_message}", "Decrypted Message")
+                    else:
+                        easygui.msgbox("Decryption failed. Please check the keys or the message.", "Error")
+                except Exception as e:
+                    easygui.msgbox(f"Failed to decrypt the message: {e}", "Error")
+            else:
+                easygui.msgbox("Message decryption skipped.", "Skipped")
         else:
             easygui.msgbox("No message received.", "No Message")
 
@@ -280,7 +313,7 @@ def main():
 
             if ciphertext:
                 try:
-                    # Decrypt the message
+                    # Call the decrypt_message function
                     decrypted_message = decrypt_message(ciphertext, private_key)
                     easygui.msgbox(f"Decrypted message:\n{decrypted_message}", "Decrypted Message")
                 except Exception as e:
