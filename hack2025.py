@@ -112,7 +112,7 @@ def start_chatbox():
 
     chatbox.mainloop()
 
-# Main function with easygui popups
+# Updated main function with "Live Chatbox" removed
 def main():
     # Password protection
     correct_password = "ee2026"  # Set the password to "ee2026"
@@ -129,7 +129,7 @@ def main():
         choice = easygui.buttonbox(
             "What would you like to do?",
             "RSA Encrypter/Decrypter",
-            choices=["Generate RSA Keys", "Encrypt a Message", "Decrypt a Message", "View Saved Messages", "Live Chatbox", "Exit"]
+            choices=["Generate RSA Keys", "Encrypt a Message", "Decrypt a Message", "View Saved Messages", "Exit"]
         )
 
         if choice == "Generate RSA Keys":
@@ -216,10 +216,6 @@ def main():
             if reset_choice:
                 clear_saved_messages()
                 easygui.msgbox("All saved messages have been deleted.", "Reset Successful")
-
-        elif choice == "Live Chatbox":
-            # Start the live chatbox
-            start_chatbox()
 
         elif choice == "Exit":
             easygui.msgbox("Goodbye!", "Exit")
