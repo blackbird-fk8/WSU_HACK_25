@@ -10,9 +10,17 @@ from threading import Thread
 import time
 import base64  # Add this import at the top of the file
 import socket  # For network communication
+import tempfile  # Add this import at the top of the file
 
 # File to store saved messages
 SAVED_MESSAGES_FILE = "saved_messages.txt"
+
+# Define a consistent directory for storing keys
+KEYS_DIR = os.path.join(os.path.expanduser("~"), "rsa_keys")  # Use the user's home directory
+
+# Ensure the directory exists
+if not os.path.exists(KEYS_DIR):
+    os.makedirs(KEYS_DIR)
 
 # Generate RSA keys
 def generate_keys():
@@ -36,28 +44,40 @@ def decrypt_message(ciphertext, private_key):
     plaintext = cipher.decrypt(ciphertext_bytes)
     return plaintext.decode('utf-8')
 
-# Save private key to a file
+# Save private key to the keys directory
 def save_private_key(private_key, filename="private_key.pem"):
-    with open(filename, "wb") as key_file:
-        key_file.write(private_key)
+    filepath = os.path.join(KEYS_DIR, filename)
+    try:
+        with open(filepath, "wb") as key_file:
+            key_file.write(private_key)
+        easygui.msgbox(f"Private key saved to {filepath}", "Success")
+    except Exception as e:
+        easygui.msgbox(f"An error occurred while saving the private key: {e}", "Error")
 
-# Save public key to a file
+# Save public key to the keys directory
 def save_public_key(public_key, filename="public_key.pem"):
-    with open(filename, "wb") as key_file:
-        key_file.write(public_key)
+    filepath = os.path.join(KEYS_DIR, filename)
+    try:
+        with open(filepath, "wb") as key_file:
+            key_file.write(public_key)
+        easygui.msgbox(f"Public key saved to {filepath}", "Success")
+    except Exception as e:
+        easygui.msgbox(f"An error occurred while saving the public key: {e}", "Error")
 
-# Load private key from a file
+# Load private key from the keys directory
 def load_private_key(filename="private_key.pem"):
-    if not os.path.exists(filename):
-        raise FileNotFoundError(f"Private key file '{filename}' not found.")
-    with open(filename, "rb") as key_file:
+    filepath = os.path.join(KEYS_DIR, filename)
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Private key file '{filepath}' not found.")
+    with open(filepath, "rb") as key_file:
         return key_file.read()
 
-# Load public key from a file
+# Load public key from the keys directory
 def load_public_key(filename="public_key.pem"):
-    if not os.path.exists(filename):
-        raise FileNotFoundError(f"Public key file '{filename}' not found.")
-    with open(filename, "rb") as key_file:
+    filepath = os.path.join(KEYS_DIR, filename)
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Public key file '{filepath}' not found.")
+    with open(filepath, "rb") as key_file:
         return key_file.read()
 
 # Save a message to the saved messages file
@@ -131,8 +151,16 @@ def send_message():
         # Prompt the user to enter a message
         message = easygui.enterbox("Enter your message:", "Send Message")
         if message:
-            client_socket.send(message.encode('utf-8'))  # Send the message
+            # Encrypt the message before sending
+            public_key = load_public_key()  # Load the public key for encryption
+            encrypted_message = encrypt_message(message, public_key)
+
+            # Send the encrypted message
+            client_socket.send(encrypted_message.encode('utf-8'))
             easygui.msgbox("Message sent successfully!", "Message Sent")
+
+            # Save the encrypted message to the saved messages file
+            save_message(encrypted_message)
         else:
             easygui.msgbox("No message entered. Connection closed.", "No Message")
 

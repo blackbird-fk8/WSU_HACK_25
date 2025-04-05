@@ -9,9 +9,18 @@ from tkinter import scrolledtext
 from threading import Thread
 import time
 import base64  # Add this import at the top of the file
+import socket  # For network communication
+import tempfile  # Add this import at the top of the file
 
 # File to store saved messages
 SAVED_MESSAGES_FILE = "saved_messages.txt"
+
+# Define a consistent directory for storing keys
+KEYS_DIR = os.path.join(os.path.expanduser("~"), "rsa_keys")  # Use the user's home directory
+
+# Ensure the directory exists
+if not os.path.exists(KEYS_DIR):
+    os.makedirs(KEYS_DIR)
 
 # Generate RSA keys
 def generate_keys():
@@ -35,28 +44,40 @@ def decrypt_message(ciphertext, private_key):
     plaintext = cipher.decrypt(ciphertext_bytes)
     return plaintext.decode('utf-8')
 
-# Save private key to a file
+# Save private key to the keys directory
 def save_private_key(private_key, filename="private_key.pem"):
-    with open(filename, "wb") as key_file:
-        key_file.write(private_key)
+    filepath = os.path.join(KEYS_DIR, filename)
+    try:
+        with open(filepath, "wb") as key_file:
+            key_file.write(private_key)
+        easygui.msgbox(f"Private key saved to {filepath}", "Success")
+    except Exception as e:
+        easygui.msgbox(f"An error occurred while saving the private key: {e}", "Error")
 
-# Save public key to a file
+# Save public key to the keys directory
 def save_public_key(public_key, filename="public_key.pem"):
-    with open(filename, "wb") as key_file:
-        key_file.write(public_key)
+    filepath = os.path.join(KEYS_DIR, filename)
+    try:
+        with open(filepath, "wb") as key_file:
+            key_file.write(public_key)
+        easygui.msgbox(f"Public key saved to {filepath}", "Success")
+    except Exception as e:
+        easygui.msgbox(f"An error occurred while saving the public key: {e}", "Error")
 
-# Load private key from a file
+# Load private key from the keys directory
 def load_private_key(filename="private_key.pem"):
-    if not os.path.exists(filename):
-        raise FileNotFoundError(f"Private key file '{filename}' not found.")
-    with open(filename, "rb") as key_file:
+    filepath = os.path.join(KEYS_DIR, filename)
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Private key file '{filepath}' not found.")
+    with open(filepath, "rb") as key_file:
         return key_file.read()
 
-# Load public key from a file
+# Load public key from the keys directory
 def load_public_key(filename="public_key.pem"):
-    if not os.path.exists(filename):
-        raise FileNotFoundError(f"Public key file '{filename}' not found.")
-    with open(filename, "rb") as key_file:
+    filepath = os.path.join(KEYS_DIR, filename)
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(f"Public key file '{filepath}' not found.")
+    with open(filepath, "rb") as key_file:
         return key_file.read()
 
 # Save a message to the saved messages file
@@ -112,7 +133,68 @@ def start_chatbox():
 
     chatbox.mainloop()
 
-# Main function with easygui popups
+# Function to send a message to another user
+def send_message():
+    host = easygui.enterbox("Enter the recipient's IP address:", "Send Message")
+    if not host:
+        easygui.msgbox("No IP address entered. Returning to the main menu.", "No IP Address")
+        return
+
+    port = 12345  # Port to connect to
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    try:
+        # Attempt to connect to the recipient
+        client_socket.connect((host, port))
+        easygui.msgbox(f"Connected to {host}:{port}", "Connection Established")
+
+        # Prompt the user to enter a message
+        message = easygui.enterbox("Enter your message:", "Send Message")
+        if message:
+            # Encrypt the message before sending
+            public_key = load_public_key()  # Load the public key for encryption
+            encrypted_message = encrypt_message(message, public_key)
+
+            # Send the encrypted message
+            client_socket.send(encrypted_message.encode('utf-8'))
+            easygui.msgbox("Message sent successfully!", "Message Sent")
+
+            # Save the encrypted message to the saved messages file
+            save_message(encrypted_message)
+        else:
+            easygui.msgbox("No message entered. Connection closed.", "No Message")
+
+        client_socket.close()
+    except Exception as e:
+        easygui.msgbox(f"Failed to send message: {e}", "Connection Error")
+
+# Function to receive a message and display it in a pop-up
+def receive_message():
+    host = socket.gethostbyname(socket.gethostname())  # Get the local IP address
+    port = 12345  # Port to listen on
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind((host, port))
+    server_socket.listen(1)
+    easygui.msgbox(f"Waiting for a connection...\nYour IP: {host}", "Waiting for Connection")
+
+    try:
+        conn, addr = server_socket.accept()  # Accept an incoming connection
+        easygui.msgbox(f"Connected to {addr}", "Connection Established")
+
+        # Receive the message
+        data = conn.recv(1024).decode('utf-8')
+        if data:
+            # Display the received message in a pop-up
+            easygui.msgbox(f"Message received:\n{data}", "Message Received")
+        else:
+            easygui.msgbox("No message received.", "No Message")
+
+        conn.close()
+        server_socket.close()
+    except Exception as e:
+        easygui.msgbox(f"Failed to receive message: {e}", "Connection Error")
+
+# Updated main function with "Send" and "Receive" options
 def main():
     # Password protection
     correct_password = "ee2026"  # Set the password to "ee2026"
@@ -129,7 +211,15 @@ def main():
         choice = easygui.buttonbox(
             "What would you like to do?",
             "RSA Encrypter/Decrypter",
-            choices=["Generate RSA Keys", "Encrypt a Message", "Decrypt a Message", "View Saved Messages", "Live Chatbox", "Exit"]
+            choices=[
+                "Generate RSA Keys",
+                "Encrypt a Message",
+                "Decrypt a Message",
+                "View Saved Messages",
+                "Send",
+                "Receive",
+                "Exit"
+            ]
         )
 
         if choice == "Generate RSA Keys":
@@ -190,7 +280,6 @@ def main():
 
             if ciphertext:
                 try:
-
                     # Decrypt the message
                     decrypted_message = decrypt_message(ciphertext, private_key)
                     easygui.msgbox(f"Decrypted message:\n{decrypted_message}", "Decrypted Message")
@@ -218,9 +307,11 @@ def main():
                 clear_saved_messages()
                 easygui.msgbox("All saved messages have been deleted.", "Reset Successful")
 
-        elif choice == "Live Chatbox":
-            # Start the live chatbox
-            start_chatbox()
+        elif choice == "Send":
+            send_message()
+
+        elif choice == "Receive":
+            receive_message()
 
         elif choice == "Exit":
             easygui.msgbox("Goodbye!", "Exit")
