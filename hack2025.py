@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import scrolledtext
 from threading import Thread
 import time
+import base64  # Add this import at the top of the file
 
 # File to store saved messages
 SAVED_MESSAGES_FILE = "saved_messages.txt"
@@ -24,13 +25,14 @@ def encrypt_message(message, public_key):
     rsa_key = RSA.import_key(public_key)
     cipher = PKCS1_OAEP.new(rsa_key)
     ciphertext = cipher.encrypt(message.encode('utf-8'))
-    return ciphertext
+    return base64.b64encode(ciphertext).decode('utf-8')  # Encode as Base64 string
 
 # Decrypt a message using the private key
 def decrypt_message(ciphertext, private_key):
     rsa_key = RSA.import_key(private_key)
     cipher = PKCS1_OAEP.new(rsa_key)
-    plaintext = cipher.decrypt(ciphertext)
+    ciphertext_bytes = base64.b64decode(ciphertext)  # Decode from Base64 string
+    plaintext = cipher.decrypt(ciphertext_bytes)
     return plaintext.decode('utf-8')
 
 # Save private key to a file
@@ -60,7 +62,7 @@ def load_public_key(filename="public_key.pem"):
 # Save a message to the saved messages file
 def save_message(message):
     with open(SAVED_MESSAGES_FILE, "a") as file:
-        file.write(message + "\n")
+        file.write(message + "\n")  # Message is now a Base64-encoded string
 
 # Load saved messages from the file and format them as a numbered list with bold numbers
 def load_saved_messages():
@@ -141,7 +143,7 @@ def main():
             # Load public key
             try:
                 public_key = load_public_key()
-            except FileNotFoundError as e:
+            except FileNotFoundError:
                 easygui.msgbox(
                     "Public key not found! Please generate RSA keys first.",
                     "Error"
@@ -151,19 +153,29 @@ def main():
             # Ask for the message to encrypt
             message = easygui.enterbox("Enter the message to encrypt:", "Encrypt Message")
 
-            if message:
+            if not message:
+                easygui.msgbox("No message entered! Please enter a valid message.", "Error")
+                continue
+
+            try:
                 # Encrypt the message
                 ciphertext = encrypt_message(message, public_key)
                 # Save the encrypted message
-                save_message(str(ciphertext))
+                save_message(ciphertext)
                 # Copy the encrypted message to the clipboard
-                pyperclip.copy(str(ciphertext))
-                easygui.msgbox(
-                    f"Encrypted message:\n{ciphertext}\n\nThe message has been copied to the clipboard.",
-                    "Encrypted Message"
-                )
-            else:
-                easygui.msgbox("No message entered!", "Error")
+                try:
+                    pyperclip.copy(ciphertext)
+                    easygui.msgbox(
+                        f"Encrypted message:\n{ciphertext}\n\nThe message has been copied to the clipboard.",
+                        "Encrypted Message"
+                    )
+                except pyperclip.PyperclipException:
+                    easygui.msgbox(
+                        f"Encrypted message:\n{ciphertext}\n\nFailed to copy the message to the clipboard.",
+                        "Encrypted Message"
+                    )
+            except Exception as e:
+                easygui.msgbox(f"An error occurred during encryption: {e}", "Error")
 
         elif choice == "Decrypt a Message":
             # Load private key
@@ -174,14 +186,12 @@ def main():
                 continue
 
             # Ask for the encrypted message
-            ciphertext = easygui.enterbox("Enter the encrypted message (in bytes format):", "Decrypt Message")
+            ciphertext = easygui.enterbox("Enter the encrypted message (Base64 format):", "Decrypt Message")
 
             if ciphertext:
                 try:
-                    ciphertext_bytes = eval(ciphertext)  # Convert string input to bytes
-
                     # Decrypt the message
-                    decrypted_message = decrypt_message(ciphertext_bytes, private_key)
+                    decrypted_message = decrypt_message(ciphertext, private_key)
                     easygui.msgbox(f"Decrypted message:\n{decrypted_message}", "Decrypted Message")
                 except Exception as e:
                     easygui.msgbox(f"Failed to decrypt the message: {e}", "Error")
