@@ -152,10 +152,20 @@ def main():
             # Load and display saved messages in a scrollable text box
             saved_messages = load_saved_messages()
             easygui.textbox(
-                "Here are the saved messages:",
+                "Here are the saved messages: (Press OK to reset or continue)",
                 "Saved Messages",
                 saved_messages
             )
+
+            # Add a reset button after displaying the messages
+            reset_choice = easygui.ynbox(
+                "Do you want to delete all saved messages?",
+                "Reset Messages",
+                choices=["Yes", "No"]
+            )
+            if reset_choice:
+                clear_saved_messages()
+                easygui.msgbox("All saved messages have been deleted.", "Reset Successful")
 
         elif choice == "Exit":
             easygui.msgbox("Goodbye!", "Exit")
