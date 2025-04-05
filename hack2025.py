@@ -1,69 +1,87 @@
-import pandas as pd
-import folium
-from flask import Flask, render_template_string, request, jsonify
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Random import get_random_bytes
 
-app = Flask(__name__)
+# Generate RSA keys
+def generate_keys():
+    key = RSA.generate(2048)
+    private_key = key.export_key()
+    public_key = key.publickey().export_key()
+    return private_key, public_key
 
-@app.route('/')
-def map_view():
-    """Render the map."""
-    # Create a folium map centered at a default location
-    world_map = folium.Map(location=[0, 0], zoom_start=2)
+# Encrypt a message using the public key
+def encrypt_message(message, public_key):
+    rsa_key = RSA.import_key(public_key)
+    cipher = PKCS1_OAEP.new(rsa_key)
+    ciphertext = cipher.encrypt(message.encode('utf-8'))
+    return ciphertext
 
-    # Add a click event to capture latitude and longitude
-    world_map.add_child(folium.LatLngPopup())
+# Decrypt a message using the private key
+def decrypt_message(ciphertext, private_key):
+    rsa_key = RSA.import_key(private_key)
+    cipher = PKCS1_OAEP.new(rsa_key)
+    plaintext = cipher.decrypt(ciphertext)
+    return plaintext.decode('utf-8')
 
-    # Save the map as an HTML file
-    map_html = world_map._repr_html_()
+# Save private key to a file
+def save_private_key(private_key, filename):
+    with open(filename, "wb") as key_file:
+        key_file.write(private_key)
 
-    # Render the map in a simple HTML template
-    template = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Interactive World Map</title>
-    </head>
-    <body>
-        <h1>Click on the map to get coordinates</h1>
-        {map_html}
-    </body>
-    </html>
-    """
-    return render_template_string(template)
+# Save public key to a file
+def save_public_key(public_key, filename):
+    with open(filename, "wb") as key_file:
+        key_file.write(public_key)
 
-if __name__ == "__main__":
-    print("Starting the server... Open http://127.0.0.1:5000 in your browser.")
-    app.run(debug=True)
+# Load private key from a file
+def load_private_key(filename):
+    with open(filename, "rb") as key_file:
+        return key_file.read()
 
-"""import random
-import math
+# Load public key from a file
+def load_public_key(filename):
+    with open(filename, "rb") as key_file:
+        return key_file.read()
 
+# Main function to demonstrate RSA encryption and decryption
 def main():
-    # Get user input for latitude, longitude, and radius
-    lat = float(input("Enter latitude: "))
-    lon = float(input("Enter longitude: "))
-    radius_km = float(input("Enter radius (km): "))
+    print("Welcome to the RSA Encrypter/Decrypter!")
+    print("1. Encrypt a message")
+    print("2. Decrypt a message")
+    choice = input("Enter your choice (1 or 2): ")
 
-    # Call the generate_masked_location function
-    masked_lat, masked_lon = generate_masked_location(lat, lon, radius_km)
-    
-    # Print the results
-    print(f"Original Location: Latitude = {lat}, Longitude = {lon}")
-    print(f"Masked Location: Latitude = {masked_lat}, Longitude = {masked_lon}")
+    if choice == "1":
+        # Generate keys
+        private_key, public_key = generate_keys()
 
-def generate_masked_location(lat, lon, radius_km):
-    radius_deg = radius_km / 111  # Approx conversion: 1° lat ≈ 111 km
+        # Save keys to files
+        save_private_key(private_key, "private_key.pem")
+        save_public_key(public_key, "public_key.pem")
 
-    u = random.random()
-    v = random.random()
-    w = radius_deg * math.sqrt(u)
-    t = 2 * math.pi * v
-    delta_lat = w * math.cos(t)
-    delta_lon = w * math.sin(t) / math.cos(math.radians(lat))
-    
-    masked_lat = lat + delta_lat
-    masked_lon = lon + delta_lon
-    return masked_lat, masked_lon
+        # Message to encrypt
+        message = input("Enter the message to encrypt: ")
+
+        # Encrypt the message
+        ciphertext = encrypt_message(message, public_key)
+        print(f"Encrypted message: {ciphertext}")
+
+    elif choice == "2":
+        # Load keys from files
+        private_key = load_private_key("private_key.pem")
+
+        # Encrypted message to decrypt
+        ciphertext = input("Enter the encrypted message (in bytes format): ")
+        ciphertext = eval(ciphertext)  # Convert string input to bytes
+
+        # Decrypt the message
+        try:
+            decrypted_message = decrypt_message(ciphertext, private_key)
+            print(f"Decrypted message: {decrypted_message}")
+        except Exception as e:
+            print(f"Failed to decrypt the message: {e}")
+
+    else:
+        print("Invalid choice. Please enter 1 or 2.")
 
 if __name__ == "__main__":
-    main()"""
+    main()
