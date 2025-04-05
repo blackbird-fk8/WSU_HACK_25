@@ -105,8 +105,12 @@ def main():
             try:
                 public_key = load_public_key()
             except FileNotFoundError as e:
-                easygui.msgbox(str(e), "Error")
-                continue
+                easygui.msgbox(
+                    "Public key not found! Please generate RSA keys first.",
+                    "Error"
+                )
+                continue  # Return to the main menu
+
 
             # Ask for the message to encrypt
             message = easygui.enterbox("Enter the message to encrypt:", "Encrypt Message")
