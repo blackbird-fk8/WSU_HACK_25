@@ -4,7 +4,7 @@ import easygui
 import os
 import pyperclip  # For clipboard functionality
 import webbrowser  # For opening a link in the browser
-
+import requests  # For sending messages to Discord
 
 # File to store saved messages
 SAVED_MESSAGES_FILE = "saved_messages.txt"
@@ -73,6 +73,17 @@ def clear_saved_messages():
     if os.path.exists(SAVED_MESSAGES_FILE):
         os.remove(SAVED_MESSAGES_FILE)
 
+# Function to send a message to a Discord webhook
+def send_to_discord(webhook_url, message):
+    data = {
+        "content": message  # The message to send
+    }
+    response = requests.post(webhook_url, json=data)
+    if response.status_code == 204:
+        easygui.msgbox("Message sent to Discord successfully!", "Success")
+    else:
+        easygui.msgbox(f"Failed to send message to Discord. Status code: {response.status_code}", "Error")
+
 # Main function with easygui popups
 def main():
     # Password protection
@@ -111,7 +122,6 @@ def main():
                 )
                 continue  # Return to the main menu
 
-
             # Ask for the message to encrypt
             message = easygui.enterbox("Enter the message to encrypt:", "Encrypt Message")
 
@@ -126,6 +136,17 @@ def main():
                     f"Encrypted message:\n{ciphertext}\n\nThe message has been copied to the clipboard.",
                     "Encrypted Message"
                 )
+
+                # Ask if the user wants to send the message to Discord
+                send_choice = easygui.ynbox(
+                    "Do you want to send the encrypted message to Discord?",
+                    "Send to Discord",
+                    choices=["Yes", "No"]
+                )
+                if send_choice:
+                    # Hardcoded webhook URL
+                    webhook_url = "https://discord.com/api/webhooks/1357991272521924778/qDozR9wmYblsOT6nuB5woZwACu1YvvmQR2jqyakuPrD9qziFtyvCghianEADCsDzZfFi"
+                    send_to_discord(webhook_url, str(ciphertext))
             else:
                 easygui.msgbox("No message entered!", "Error")
 
