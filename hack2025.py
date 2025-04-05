@@ -4,7 +4,10 @@ import easygui
 import os
 import pyperclip  # For clipboard functionality
 import webbrowser  # For opening a link in the browser
-import requests  # For sending messages to Discord
+import tkinter as tk
+from tkinter import scrolledtext
+from threading import Thread
+import time
 
 # File to store saved messages
 SAVED_MESSAGES_FILE = "saved_messages.txt"
@@ -73,16 +76,39 @@ def clear_saved_messages():
     if os.path.exists(SAVED_MESSAGES_FILE):
         os.remove(SAVED_MESSAGES_FILE)
 
-# Function to send a message to a Discord webhook
-def send_to_discord(webhook_url, message):
-    data = {
-        "content": message  # The message to send
-    }
-    response = requests.post(webhook_url, json=data)
-    if response.status_code == 204:
-        easygui.msgbox("Message sent to Discord successfully!", "Success")
-    else:
-        easygui.msgbox(f"Failed to send message to Discord. Status code: {response.status_code}", "Error")
+# Live Chatbox Functionality
+def start_chatbox():
+    def send_message():
+        message = message_entry.get()
+        if message:
+            chat_display.insert(tk.END, f"You: {message}\n")
+            message_entry.delete(0, tk.END)
+            # Simulate receiving a response
+            Thread(target=receive_message, args=(message,)).start()
+
+    def receive_message(message):
+        time.sleep(1)  # Simulate delay
+        response = f"Echo: {message}"  # Replace with actual response logic
+        chat_display.insert(tk.END, f"Bot: {response}\n")
+
+    # Create the chatbox window
+    chatbox = tk.Tk()
+    chatbox.title("Live Chatbox")
+
+    # Chat display area
+    chat_display = scrolledtext.ScrolledText(chatbox, wrap=tk.WORD, width=50, height=20)
+    chat_display.pack(padx=10, pady=10)
+    chat_display.config(state=tk.NORMAL)
+
+    # Message entry area
+    message_entry = tk.Entry(chatbox, width=40)
+    message_entry.pack(side=tk.LEFT, padx=10, pady=10)
+
+    # Send button
+    send_button = tk.Button(chatbox, text="Send", command=send_message)
+    send_button.pack(side=tk.RIGHT, padx=10, pady=10)
+
+    chatbox.mainloop()
 
 # Main function with easygui popups
 def main():
@@ -101,7 +127,7 @@ def main():
         choice = easygui.buttonbox(
             "What would you like to do?",
             "RSA Encrypter/Decrypter",
-            choices=["Generate RSA Keys", "Encrypt a Message", "Decrypt a Message", "View Saved Messages", "Exit"]
+            choices=["Generate RSA Keys", "Encrypt a Message", "Decrypt a Message", "View Saved Messages", "Live Chatbox", "Exit"]
         )
 
         if choice == "Generate RSA Keys":
@@ -136,17 +162,6 @@ def main():
                     f"Encrypted message:\n{ciphertext}\n\nThe message has been copied to the clipboard.",
                     "Encrypted Message"
                 )
-
-                # Ask if the user wants to send the message to Discord
-                send_choice = easygui.ynbox(
-                    "Do you want to send the encrypted message to Discord?",
-                    "Send to Discord",
-                    choices=["Yes", "No"]
-                )
-                if send_choice:
-                    # Hardcoded webhook URL
-                    webhook_url = "https://discord.com/api/webhooks/1357991272521924778/qDozR9wmYblsOT6nuB5woZwACu1YvvmQR2jqyakuPrD9qziFtyvCghianEADCsDzZfFi"
-                    send_to_discord(webhook_url, str(ciphertext))
             else:
                 easygui.msgbox("No message entered!", "Error")
 
@@ -191,6 +206,10 @@ def main():
             if reset_choice:
                 clear_saved_messages()
                 easygui.msgbox("All saved messages have been deleted.", "Reset Successful")
+
+        elif choice == "Live Chatbox":
+            # Start the live chatbox
+            start_chatbox()
 
         elif choice == "Exit":
             easygui.msgbox("Goodbye!", "Exit")
